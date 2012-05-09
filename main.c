@@ -1,0 +1,333 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <string.h>
+#include <assert.h>
+#include <unistd.h>
+#include <time.h>
+
+#define ABS(a) ((a) < 0 ? -(a) : (a))
+
+struct number {
+    char value,
+         fixed;
+};
+
+struct sudoku {
+    struct number arr[9][9];
+};
+
+struct sudoku *sudoku_alloc(void)
+{
+    struct sudoku *s;
+
+    s = calloc(1, sizeof(*s));
+
+    if (!s) {
+        perror("sudoku_alloc: calloc");
+        exit(EXIT_FAILURE);
+    }
+
+    return s;
+}
+
+void sudoku_free(struct sudoku *s)
+{
+    free(s);
+}
+
+void sudoku_read(char *filename, struct sudoku *s)
+{
+    FILE *f;
+    int x, y, c;
+
+    f = fopen(filename, "r");
+
+    if (!f) {
+        fprintf(stderr, "read_sudoku: %s: ", filename);
+        perror("fopen");
+        exit(EXIT_FAILURE);
+    }
+
+    x = y = 0;
+
+    while ((c = fgetc(f)) != EOF) {
+        if (isspace(c))
+            continue;
+
+        if (x == 9) {
+            x = 0;
+            y++;
+        }
+
+        if (y > 8) {
+            fprintf(stderr, "sudoku_read: %s: warning: "
+                    "skipping character '%c' in line %d\n",
+                    filename, c, y);
+            continue;
+        }
+
+        if (c == '_' || c == '0' || c == 'x' || c == '-' || c == '#') {
+            s->arr[y][x].value = s->arr[y][x].fixed = 0;
+            x++;
+            continue;
+        }
+
+        if (c >= '1' && c <= '9') {
+            s->arr[y][x].fixed = 1;
+            s->arr[y][x].value = c - '0';
+            x++;
+            continue;
+        }
+
+        fprintf(stderr, "sudoku_read: %s: unknown character '%c' (line %d)\n",
+                filename, c, y + 1);
+        exit(EXIT_FAILURE);
+    }
+
+    if (x < 8 || y < 8) {
+        fprintf(stderr, "sudoku_read: %s: some fields are not defined\n",
+                filename);
+        exit(EXIT_FAILURE);
+    }
+
+    if (fclose(f) == EOF) {
+        fprintf(stderr, "sudoku_read: %s: ", filename);
+        perror("fclose");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void sudoku_print(struct sudoku *s)
+{
+    int x, y;
+
+    for (y = 0; y < 9; y ++) {
+        if (y == 0)
+            puts("+-----+-----+-----+");
+
+        for (x = 0; x < 9; x++) {
+            if (x == 0 || x == 3 || x == 6)
+                printf("|");
+
+            if (s->arr[y][x].value == 0)
+                printf(" %s", (x == 2 || x == 5 || x == 8) ? "" : " ");
+            else
+                printf("%c%s", s->arr[y][x].value + '0',
+                               (x == 2 || x == 5 || x == 8) ? "" : " ");
+
+            if (x == 8)
+                printf("|\n");
+        }
+
+        if (y == 2 || y == 5 || y == 8)
+            puts("+-----+-----+-----+");
+    }
+
+    puts("");
+}
+
+int count_faults(struct sudoku *s)
+{
+    int faults, x, y, i, j;
+    int count[9];
+
+    faults = 0;
+
+    for (y = 0; y < 9; y++) {
+        memset(count, 0, 9 * sizeof(*count));
+
+        for (x = 0; x < 9; x++) {
+            if (s->arr[y][x].value == 0) {
+                faults++;
+                continue;
+            }
+
+            assert(s->arr[y][x].value >= 1 && s->arr[y][x].value <= 9);
+
+            count[s->arr[y][x].value - 1]++;
+        }
+
+        for (x = 0; x < 9; x++)
+            if (count[x] > 1)
+                faults += ABS(count[x] - 1);
+    }
+
+    for (x = 0; x < 9; x++) {
+        memset(count, 0, 9 * sizeof(*count));
+
+        for (y = 0; y < 9; y++) {
+            if (s->arr[y][x].value == 0)
+                continue;
+
+            assert(s->arr[y][x].value >= 1 && s->arr[y][x].value <= 9);
+
+            count[s->arr[y][x].value - 1]++;
+        }
+
+        for (y = 0; y < 9; y++)
+            if (count[y] > 1)
+                faults += ABS(count[y] - 1);
+    }
+
+    for (y = 0; y < 9; y += 3) {
+        for (x = 0; x < 9; x += 3) {
+            memset(count, 0, 9 * sizeof(*count));
+
+            for (i = 0; i < 3; i++)
+                for (j = 0; j < 3; j++) {
+                    if (s->arr[y + i][x + j].value == 0) {
+                        faults++;
+                        continue;
+                    }
+
+                    assert(s->arr[y + i][x + j].value >= 1
+                           && s->arr[y + i][x + j].value <= 9);
+
+                    count[s->arr[y + i][x + j].value - 1]++;
+                }
+
+            for (i = 0; i < 9; i++)
+                if (count[i] > 1)
+                    faults += count[i] - 1;
+        }
+    }
+
+    return faults;
+}
+
+int solve_recursive(struct sudoku *s, int x, int y)
+{
+    int i, j, k, l, x_n, y_n;
+    int possible[9] = {0};
+
+    x_n = x;
+    y_n = y;
+
+    while ((x_n == x && y_n == y) || s->arr[y_n][x_n].fixed) {
+        x_n++;
+
+        if (x_n == 9) {
+            y_n++;
+            x_n = 0;
+        }
+
+        if (y_n == 9) {
+            x_n = y_n = -1;
+            break;
+        }
+    }
+
+    if (s->arr[y][x].fixed)
+        return x_n != -1 && solve_recursive(s, x_n, y_n);
+
+    /* row */
+    for (i = 0; i < 9; i++) {
+        if (s->arr[y][i].value == 0)
+            continue;
+
+        assert(s->arr[y][i].value >= 1 && s->arr[y][i].value <= 9);
+
+        possible[s->arr[y][i].value - 1]++;
+    }
+
+    /* column */
+    for (i = 0; i < 9; i++) {
+        if (s->arr[i][x].value == 0)
+            continue;
+
+        assert(s->arr[i][x].value >= 1 && s->arr[i][x].value <= 9);
+
+        possible[s->arr[i][x].value - 1]++;
+    }
+
+    /* block */
+    i = (y / 3) * 3;
+    j = (x / 3) * 3;
+
+    for (k = 0; k < 3; k++) {
+        for (l = 0; l < 3; l++) {
+            if (s->arr[i + k][j + l].value == 0)
+                continue;
+
+            assert(s->arr[i + k][j + l].value >= 1
+                   && s->arr[i + k][j + l].value <= 9);
+
+            possible[s->arr[i + k][j + l].value - 1]++;
+        }
+    }
+
+    for (i = 0; i < 9; i++) {
+        assert(possible[i] <= 3);
+
+        possible[i] = !possible[i];
+
+        if (!possible[i])
+            continue;
+
+        s->arr[y][x].value = i + 1;
+
+        if (!count_faults(s))
+            return 1;
+
+        if (x_n != -1 && solve_recursive(s, x_n, y_n))
+            return 1;
+    }
+
+    s->arr[y][x].value = 0;
+
+    return !count_faults(s);
+}
+
+int sudoku_solve(struct sudoku *s)
+{
+    return solve_recursive(s, 0, 0);
+}
+
+int all_fixed(struct sudoku *s)
+{
+    int x, y;
+
+    for (y = 0; y < 9; y++)
+        for (x = 0; x < 9; x++)
+            if (!s->arr[y][x].fixed)
+                return 0;
+
+    return 1;
+}
+
+int main(int argc, char *argv[])
+{
+    struct sudoku *s;
+    int i;
+
+    s = sudoku_alloc();
+
+    for (i = 1; i < argc; i++) {
+        sudoku_read(argv[i], s);
+
+        if (all_fixed(s)) {
+            if (!count_faults(s))
+                fprintf(stderr, "%s: sudoku already solved\n", argv[i]);
+            else
+                fprintf(stderr, "%s: sudoku has no free field\n", argv[i]);
+
+            continue;
+        }
+
+        puts("sudoku read:");
+        sudoku_print(s);
+
+        if (!sudoku_solve(s)) {
+            fprintf(stderr, "%s: sudoku could not be solved\n", argv[i]);
+            continue;
+        }
+
+        puts("sudoku solved:");
+        sudoku_print(s);
+    }
+
+    sudoku_free(s);
+
+    return 0;
+}
