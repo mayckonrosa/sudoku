@@ -1,0 +1,23 @@
+Solve sudokus by using a backtracking algorithm
+===============================================
+
+compile the program by running make
+
+write your sudoku in a file using the following format:
+
+---39--1-
+5-1----4-
+9--7--5--
+6-253--7-
+----7---8
+7--8--9-3
+8-3-1--9-
+-9-2-6--7
+4----3-61
+
+the '-' character represents a not known number
+all other numbers are the known numbers
+
+then solve the sudoku:
+
+./sudoku mysudoku.txt
