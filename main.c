@@ -206,30 +206,11 @@ int is_filled(struct sudoku *s)
     return 1;
 }
 
-int solve_recursive(struct sudoku *s, int x, int y)
+void get_possible(struct sudoku *s, int x, int y, int possible[9])
 {
-    int i, j, k, l, x_n, y_n;
-    int possible[9] = {0};
+    int i, j, k, l;
 
-    x_n = x;
-    y_n = y;
-
-    while ((x_n == x && y_n == y) || s->arr[y_n][x_n].fixed) {
-        x_n++;
-
-        if (x_n == 9) {
-            y_n++;
-            x_n = 0;
-        }
-
-        if (y_n == 9) {
-            x_n = y_n = -1;
-            break;
-        }
-    }
-
-    if (s->arr[y][x].fixed)
-        return x_n != -1 && solve_recursive(s, x_n, y_n);
+    memset(possible, 0, 9 * sizeof(*possible));
 
     /* row */
     for (i = 0; i < 9; i++) {
@@ -269,9 +250,38 @@ int solve_recursive(struct sudoku *s, int x, int y)
 
     for (i = 0; i < 9; i++) {
         assert(possible[i] <= 3);
-
         possible[i] = !possible[i];
+    }
+}
 
+int solve_recursive(struct sudoku *s, int x, int y)
+{
+    int i, x_n, y_n;
+    int possible[9];
+
+    x_n = x;
+    y_n = y;
+
+    while ((x_n == x && y_n == y) || s->arr[y_n][x_n].fixed) {
+        x_n++;
+
+        if (x_n == 9) {
+            y_n++;
+            x_n = 0;
+        }
+
+        if (y_n == 9) {
+            x_n = y_n = -1;
+            break;
+        }
+    }
+
+    if (s->arr[y][x].fixed)
+        return x_n != -1 && solve_recursive(s, x_n, y_n);
+
+    get_possible(s, x, y, possible);
+
+    for (i = 0; i < 9; i++) {
         if (!possible[i])
             continue;
 
