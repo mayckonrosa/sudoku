@@ -194,6 +194,18 @@ int is_valid(struct sudoku *s)
     return 1;
 }
 
+int is_filled(struct sudoku *s)
+{
+    int x, y;
+
+    for (y = 0; y < 9; y++)
+        for (x = 0; x < 9; x++)
+            if (s->arr[y][x].value == 0)
+                return 0;
+
+    return 1;
+}
+
 int solve_recursive(struct sudoku *s, int x, int y)
 {
     int i, j, k, l, x_n, y_n;
@@ -265,7 +277,7 @@ int solve_recursive(struct sudoku *s, int x, int y)
 
         s->arr[y][x].value = i + 1;
 
-        if (is_valid(s))
+        if (is_filled(s))
             return 1;
 
         if (x_n != -1 && solve_recursive(s, x_n, y_n))
