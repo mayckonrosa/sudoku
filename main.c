@@ -127,7 +127,7 @@ void sudoku_print(struct sudoku *s)
     puts("");
 }
 
-int count_faults(struct sudoku *s)
+int is_valid(struct sudoku *s)
 {
     int faults, x, y, i, j;
     int count[9];
@@ -149,8 +149,8 @@ int count_faults(struct sudoku *s)
         }
 
         for (x = 0; x < 9; x++)
-            if (count[x] > 1)
-                faults += ABS(count[x] - 1);
+            if (count[x] != 1)
+                return 0;
     }
 
     for (x = 0; x < 9; x++) {
@@ -166,8 +166,8 @@ int count_faults(struct sudoku *s)
         }
 
         for (y = 0; y < 9; y++)
-            if (count[y] > 1)
-                faults += ABS(count[y] - 1);
+            if (count[y] != 1)
+                return 0;
     }
 
     for (y = 0; y < 9; y += 3) {
@@ -176,10 +176,8 @@ int count_faults(struct sudoku *s)
 
             for (i = 0; i < 3; i++)
                 for (j = 0; j < 3; j++) {
-                    if (s->arr[y + i][x + j].value == 0) {
-                        faults++;
-                        continue;
-                    }
+                    if (s->arr[y + i][x + j].value == 0)
+                        return 0;
 
                     assert(s->arr[y + i][x + j].value >= 1
                            && s->arr[y + i][x + j].value <= 9);
@@ -188,12 +186,12 @@ int count_faults(struct sudoku *s)
                 }
 
             for (i = 0; i < 9; i++)
-                if (count[i] > 1)
-                    faults += count[i] - 1;
+                if (count[i] != 1)
+                    return 0;
         }
     }
 
-    return faults;
+    return 1;
 }
 
 int solve_recursive(struct sudoku *s, int x, int y)
@@ -267,7 +265,7 @@ int solve_recursive(struct sudoku *s, int x, int y)
 
         s->arr[y][x].value = i + 1;
 
-        if (!count_faults(s))
+        if (is_valid(s))
             return 1;
 
         if (x_n != -1 && solve_recursive(s, x_n, y_n))
@@ -276,7 +274,7 @@ int solve_recursive(struct sudoku *s, int x, int y)
 
     s->arr[y][x].value = 0;
 
-    return !count_faults(s);
+    return 0;
 }
 
 int sudoku_solve(struct sudoku *s)
@@ -307,7 +305,7 @@ int main(int argc, char *argv[])
         sudoku_read(argv[i], s);
 
         if (all_fixed(s)) {
-            if (!count_faults(s))
+            if (is_valid(s))
                 fprintf(stderr, "%s: sudoku already solved\n", argv[i]);
             else
                 fprintf(stderr, "%s: sudoku has no free field\n", argv[i]);
