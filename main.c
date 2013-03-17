@@ -74,11 +74,16 @@ void sudoku_read(char *filename, struct sudoku *s)
             y++;
         }
 
-        if (y > 8) {
+        if (y == 9) {
             fprintf(stderr, "sudoku_read: %s: warning: "
-                    "skipping character '%c' in line %d\n",
-                    filename, c, y);
-            continue;
+                    "got more than 81 fields; skipping the next characters\n",
+                    filename);
+
+            /* prevent further errors */
+            y = 8;
+            x = 9;
+
+            break;
         }
 
         if (c == '_' || c == '0' || c == 'x' || c == '-' || c == '#') {
@@ -94,11 +99,11 @@ void sudoku_read(char *filename, struct sudoku *s)
             continue;
         }
 
-        errx(EXIT_FAILURE, "sudoku_read: %s: unknown character '%c' (line %d)",
-             filename, c, y + 1);
+        errx(EXIT_FAILURE, "sudoku_read: %s: unknown character '%c'",
+             filename, c);
     }
 
-    if (x < 8 || y < 8)
+    if (y != 8 || x != 9)
         errx(EXIT_FAILURE, "sudoku_read: %s: some fields are not defined",
              filename);
 
