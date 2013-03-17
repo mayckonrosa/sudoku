@@ -23,7 +23,6 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
-#include <time.h>
 
 #define ABS(a) ((a) < 0 ? -(a) : (a))
 
