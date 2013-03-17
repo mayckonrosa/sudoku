@@ -23,6 +23,7 @@
 #include <string.h>
 #include <assert.h>
 #include <unistd.h>
+#include <err.h>
 
 #define ABS(a) ((a) < 0 ? -(a) : (a))
 
@@ -41,10 +42,8 @@ struct sudoku *sudoku_alloc(void)
 
     s = calloc(1, sizeof(*s));
 
-    if (!s) {
-        perror("sudoku_alloc: calloc");
-        exit(EXIT_FAILURE);
-    }
+    if (!s)
+        err(EXIT_FAILURE, "sudoku_alloc: calloc");
 
     return s;
 }
@@ -61,11 +60,8 @@ void sudoku_read(char *filename, struct sudoku *s)
 
     f = fopen(filename, "r");
 
-    if (!f) {
-        fprintf(stderr, "read_sudoku: %s: ", filename);
-        perror("fopen");
-        exit(EXIT_FAILURE);
-    }
+    if (!f)
+        err(EXIT_FAILURE, "read_sudoku: %s: fopen", filename);
 
     x = y = 0;
 
@@ -98,22 +94,16 @@ void sudoku_read(char *filename, struct sudoku *s)
             continue;
         }
 
-        fprintf(stderr, "sudoku_read: %s: unknown character '%c' (line %d)\n",
-                filename, c, y + 1);
-        exit(EXIT_FAILURE);
+        errx(EXIT_FAILURE, "sudoku_read: %s: unknown character '%c' (line %d)",
+             filename, c, y + 1);
     }
 
-    if (x < 8 || y < 8) {
-        fprintf(stderr, "sudoku_read: %s: some fields are not defined\n",
-                filename);
-        exit(EXIT_FAILURE);
-    }
+    if (x < 8 || y < 8)
+        errx(EXIT_FAILURE, "sudoku_read: %s: some fields are not defined",
+             filename);
 
-    if (fclose(f) == EOF) {
-        fprintf(stderr, "sudoku_read: %s: ", filename);
-        perror("fclose");
-        exit(EXIT_FAILURE);
-    }
+    if (fclose(f) == EOF)
+        err(EXIT_FAILURE, "sudoku_read: %s: fclose", filename);
 }
 
 void sudoku_print(struct sudoku *s)
