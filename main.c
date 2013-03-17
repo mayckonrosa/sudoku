@@ -27,6 +27,8 @@
 
 #define ABS(a) ((a) < 0 ? -(a) : (a))
 
+#define UNKNOWN_FIELD "_-xX0#"
+
 struct number {
     char value,
          fixed;
@@ -86,7 +88,7 @@ void sudoku_read(char *filename, struct sudoku *s)
             break;
         }
 
-        if (c == '_' || c == '0' || c == 'x' || c == '-' || c == '#') {
+        if (strchr(UNKNOWN_FIELD, c)) {
             s->arr[y][x].value = s->arr[y][x].fixed = 0;
             x++;
             continue;
